@@ -1,53 +1,39 @@
-#include "IRremote.h"
-
-IRrecv irrecv(2); // указываем вывод, к которому подключен приемник
-
-decode_results results;
-bool svet_spalnya;
-int svet_spalnya_pin = 13;
-
-void setup() {
-  Serial.begin(9600); // выставляем скорость COM порта
-  irrecv.enableIRIn(); // запускаем прием
-  svet_spalnya = HIGH;
-  pinMode(svet_spalnya_pin, OUTPUT);
+#include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+const char* ssid = "*****";
+const char* password = "*****";
+IPAddress ip(192,168,1,17);  //статический IP
+IPAddress gateway(192,168,1,1);
+IPAddress subnet(255,255,255,0);
+ESP8266WebServer server(80);
+const int led = 13;
+void handleRoot() {
+  digitalWrite(led, 1);
+  server.send(200, "text/plain", "hello from esp8266!");
+  digitalWrite(led, 0);
 }
-
-void loop() {
-  if (Serial.available() > 0)
-  {
-    char pc_code = Serial.read();
-    Serial.println( pc_code); // печатаем данные
-    if (pc_code == 'h')
-    {
-      svet_spalnya = HIGH;
-      change_status();
-    }
-    if (pc_code == 'l')
-    {
-      svet_spalnya = LOW;
-      change_status();
-    }
+void setup(void){
+  pinMode(led, OUTPUT);
+  digitalWrite(led, 0);
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
+  WiFi.config(ip, gateway, subnet);
+  Serial.println("");
+  // ожидание соединения
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
   }
-  if ( irrecv.decode( &results )) { // если данные пришли
-    Serial.println( results.value, HEX ); // печатаем данные
-    if (results.value == 0x2FDA05F)
-    {
-      if (svet_spalnya == HIGH)
-      {
-        svet_spalnya = LOW;
-      }
-      else
-      {
-        svet_spalnya = HIGH;
-      }
-      change_status();
-    }
-    irrecv.resume(); // принимаем следующую команду
-  }
+  Serial.println("");
+  Serial.print("Connected to ");
+  Serial.println(ssid);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  server.on("/", handleRoot);
+  server.begin();
+  Serial.println("HTTP server started");
 }
-void change_status()
-{
-  digitalWrite(svet_spalnya_pin, svet_spalnya);  // зажигаем светодиод
-  delay(1000);
+void loop(void){
+  server.handleClient();
 }
