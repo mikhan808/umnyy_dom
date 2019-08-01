@@ -1,6 +1,8 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 const char* ssid = "KALYASHINY";
 const char* password = "09061995";
 ESP8266WebServer server(80);
@@ -10,7 +12,9 @@ IPAddress subnet(255,255,255,0);
 bool val1 = LOW;
 bool val2 = LOW;
 const int led1 = D6;
-const int led2 = D7;
+const int led2 = D5;
+OneWire oneWire(D7);
+DallasTemperature sensors(&oneWire);
 void handleRoot() {
   String s = "<h1>Свет в спальне ";
   s+= (val1) ? "включен" : "выключен";
@@ -22,6 +26,10 @@ void handleRoot() {
   s+= "</h1>";
   s += "<h2><a href=\"/led2/on\">Включить</a> ";
   s += "<a href=\"/led2/off\">Выключить</a></h2>";
+  s+= "<h1>Температура в спальне ";
+  s+= String(temperature());
+  s+= "'C";
+  s+= "</h1>";
   server.send(200, "text/html; charset=utf-8", s);
 }
 
@@ -104,4 +112,10 @@ void setup(){
 }
 void loop(){
   server.handleClient();
+}
+
+float temperature()
+{ 
+ sensors.requestTemperatures();
+  return sensors.getTempCByIndex(0);
 }
