@@ -3,6 +3,7 @@
 #include <ESP8266WebServer.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+bool podogrev = LOW;
 const char* ssid = "KALYASHINY";
 const char* password = "09061995";
 ESP8266WebServer server(80);
@@ -15,23 +16,145 @@ const int led1 = D6;
 const int led2 = D5;
 OneWire oneWire(D7);
 DallasTemperature sensors(&oneWire);
+
+float t_zh=22.0;
+float delta=0.1;
+float delta_change=0.1;
+String jsonConfig = "{}";
+
 void handleRoot() {
+  loadConfig();
   String s = "<h1>Свет в спальне ";
-  s+= (val1) ? "включен" : "выключен";
+    s+= (val1) ? "включен" : "выключен";
+    s+= "</h1>";
+    s += "<h2><a href=\"/led1/on\">Включить</a> ";
+    s += "<a href=\"/led1/off\">Выключить</a></h2>";
+    s += "<h1>Свет в кабинете ";
+    s+= (val2) ? "включен" : "выключен";
+    s+= "</h1>";
+    s += "<h2><a href=\"/led2/on\">Включить</a> ";
+    s += "<a href=\"/led2/off\">Выключить</a></h2>";
+    s+= "<h1>Температура в спальне ";
+    s+= String(temperature());
+    s+= "'C";
+    s+= "</h1>";
+  s+= "<h1>Подогрев ";
+  s+= (podogrev) ? "включен" : "выключен";
   s+= "</h1>";
-  s += "<h2><a href=\"/led1/on\">Включить</a> ";
-  s += "<a href=\"/led1/off\">Выключить</a></h2>";
-  s += "<h1>Свет в кабинете ";
-  s+= (val2) ? "включен" : "выключен";
+  s += "<h1>Шаг изменения температуры ";
+  s+= (String(delta_change));
   s+= "</h1>";
-  s += "<h2><a href=\"/led2/on\">Включить</a> ";
-  s += "<a href=\"/led2/off\">Выключить</a></h2>";
-  s+= "<h1>Температура в спальне ";
-  s+= String(temperature());
-  s+= "'C";
+  s += "<h2><a href=\"/delta_change_increase\">Увеличить</a> ";
+  s += "<a href=\"/delta_change_decrease\">Уменьшить</a></h2>";
+  s += "<h1>Желаемая температура ";
+  s+= (String(t_zh));
+  s+= " 'C";
   s+= "</h1>";
+  s += "<h2><a href=\"/temperature_increase\">Увеличить</a> ";
+  s += "<a href=\"/temperature_decrease\">Уменьшить</a></h2>";
+  s += "<h1>Допустимое отклонение ";
+  s+= (String(delta));
+  s+= "</h1>";
+  s += "<h2><a href=\"/delta_increase\">Увеличить</a> ";
+  s += "<a href=\"/delta_decrease\">Уменьшить</a></h2>";
   server.send(200, "text/html; charset=utf-8", s);
 }
+
+void change_value(String type,int inc) {
+  if(type=="t")
+  {
+    t_zh=t_zh+delta_change*inc;
+  }
+  if(type=="delta")
+  {
+    delta=delta+0.1*inc;
+  }
+  if(type=="delta_change")
+  {
+    delta_change=delta_change+0.1*inc;
+  }
+  saveConfig();
+  server.sendHeader("Location", String("/"), true);
+  server.send ( 302, "text/plain", "");
+}
+
+
+void delta_change_increase()
+{
+  change_value("delta_change",1);
+}
+void delta_change_decrease()
+{
+  change_value("delta_change",-1);
+}
+void temperature_increase()
+{
+  change_value("t",1);
+}
+void temperature_decrease()
+{
+  change_value("t",-1);
+}
+void delta_increase()
+{
+  change_value("delta",1);
+}
+void delta_decrease()
+{
+  change_value("delta",-1);
+}
+
+bool loadConfig() {
+  // Открываем файл для чтения
+  File configFile = SPIFFS.open("/config.json", "r");
+  if (!configFile) {
+  // если файл не найден
+    Serial.println("Failed to open config file");
+  //  Создаем файл запиав в него аные по умолчанию
+    saveConfig();
+    return false;
+  }
+  // Проверяем размер файла, будем использовать файл размером меньше 1024 байта
+  size_t size = configFile.size();
+  if (size > 1024) {
+    Serial.println("Config file size is too large");
+    return false;
+  }
+  // загружаем файл конфигурации в глобальную переменную
+  jsonConfig = configFile.readString();
+  // Резервируем памяь для json обекта буфер может рости по мере необходимти предпочтительно для ESP8266
+    DynamicJsonBuffer jsonBuffer;
+  //  вызовите парсер JSON через экземпляр jsonBuffer
+  //  строку возьмем из глобальной переменной String jsonConfig
+    JsonObject& root = jsonBuffer.parseObject(jsonConfig);
+  // Теперь можно получить значения из root
+    t_zh = root["t_zh"];
+    delta = root["delta"];
+    delta_change = root["delta_change"];
+    return true;
+}
+
+bool saveConfig() {
+  // Резервируем памяь для json обекта буфер может рости по мере необходимти предпочтительно для ESP8266
+  DynamicJsonBuffer jsonBuffer;
+  //  вызовите парсер JSON через экземпляр jsonBuffer
+  JsonObject& json = jsonBuffer.parseObject(jsonConfig);
+  // Заполняем поля json
+  json["t_zh"] = t_zh;
+  json["delta"] = delta;
+  json["delta_change"] = delta_change;
+  // Помещаем созданный json в глобальную переменную json.printTo(jsonConfig);
+  json.printTo(jsonConfig);
+  // Открываем файл для записи
+  File configFile = SPIFFS.open("/config.json", "w");
+  if (!configFile) {
+    Serial.println("Failed to open config file for writing");
+    return false;
+  }
+  // Записываем строку json в файл
+  json.printTo(configFile);
+  return true;
+  }
 
 // Метод включения диода
 void ledOn(int x) {
@@ -107,6 +230,12 @@ void setup(){
   server.on("/led1/off", led1off);
   server.on("/led2/on", led2on);
   server.on("/led2/off", led2off);
+   server.on("/delta_change_increase", delta_change_increase);
+    server.on("/delta_change_decrease", delta_change_decrease);
+    server.on("/temperature_increase", temperature_increase);
+    server.on("/temperature_decrease", temperature_decrease);
+    server.on("/delta_increase", delta_increase);
+    server.on("/delta_decrease", delta_decrease);
   server.begin();
   Serial.println("HTTP server started");
 }
