@@ -1,8 +1,12 @@
 #include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include<FS.h>
+#include<ArduinoJson.h>
+
 bool podogrev = LOW;
 const char* ssid = "KALYASHINY";
 const char* password = "09061995";
@@ -16,6 +20,7 @@ const int led1 = D6;
 const int led2 = D5;
 OneWire oneWire(D7);
 DallasTemperature sensors(&oneWire);
+HTTPClient http;
 
 float t_zh=22.0;
 float delta=0.1;
@@ -212,6 +217,7 @@ void setup(){
   digitalWrite(led2,val2);
   delay(1000);
   Serial.begin(115200);
+  SPIFFS.begin();
   WiFi.begin(ssid, password);
   WiFi.config(ip, gateway, subnet);
   Serial.println("");
@@ -241,6 +247,21 @@ void setup(){
 }
 void loop(){
   server.handleClient();
+  if(podogrev)
+  {
+    if(temperature()>=(t_zh+delta))
+    {
+      podogrevOff();
+     }
+   }
+   else
+  {
+    if(temperature()<=t_zh-delta)
+    {
+      podogrevOn();
+     }
+   }
+   delay(1000);
 }
 
 float temperature()
@@ -248,3 +269,27 @@ float temperature()
  sensors.requestTemperatures();
   return sensors.getTempCByIndex(0);
 }
+
+void podogrevOn()
+{
+  http.begin("http://192.168.0.18/kotel/on");
+  http.addHeader("Content-Type", "text/plain");
+  if(http.GET()<=0)
+  {
+    http.end();
+  return;
+  }
+  podogrev=HIGH;
+  }
+  void podogrevOff()
+{
+  http.begin("http://192.168.0.18/kotel/off");
+  http.addHeader("Content-Type", "text/plain");
+  if(http.GET()<=0)
+  {
+    http.end();
+  return;
+  }
+  http.end();
+  podogrev=LOW;
+  }
