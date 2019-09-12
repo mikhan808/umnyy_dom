@@ -26,6 +26,8 @@ float t_zh=22.0;
 float delta=0.1;
 float delta_change=0.1;
 String jsonConfig = "{}";
+float currentTemperature;
+long lastRequestTemperature;
 
 void handleRoot() {
   loadConfig();
@@ -40,7 +42,7 @@ void handleRoot() {
     s += "<h2><a href=\"/led2/on\">Включить</a> ";
     s += "<a href=\"/led2/off\">Выключить</a></h2>";
     s+= "<h1>Температура в спальне ";
-    s+= String(temperature());
+    s+= String(currentTemperature);
     s+= "'C";
     s+= "</h1>";
   s+= "<h1>Подогрев ";
@@ -244,24 +246,31 @@ void setup(){
     server.on("/delta_decrease", delta_decrease);
   server.begin();
   Serial.println("HTTP server started");
+   currentTemperature=temperature();
+lastRequestTemperature=millis();
 }
 void loop(){
+  long currentTime=millis();
+  if(currentTime-lastRequestTemperature>2000)
+  {
+    currentTemperature=temperature();
+    lastRequestTemperature=millis();
+    }
   server.handleClient();
   if(podogrev)
   {
-    if(temperature()>=(t_zh+delta))
+    if(currentTemperature>=(t_zh+delta))
     {
       podogrevOff();
      }
    }
    else
   {
-    if(temperature()<=t_zh-delta)
+    if(currentTemperature<=t_zh-delta)
     {
       podogrevOn();
      }
    }
-   delay(1000);
 }
 
 float temperature()
