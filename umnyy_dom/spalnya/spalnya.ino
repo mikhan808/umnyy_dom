@@ -27,7 +27,7 @@ float delta=0.1;
 float delta_change=0.1;
 String jsonConfig = "{}";
 float currentTemperature;
-long lastRequestTemperature;
+unsigned long lastRequestTemperature;
 
 void handleRoot() {
   loadConfig();
@@ -250,8 +250,8 @@ void setup(){
 lastRequestTemperature=millis();
 }
 void loop(){
-  long currentTime=millis();
-  if(currentTime-lastRequestTemperature>2000)
+  unsigned long currentTime=millis();
+  if(abs(currentTime-lastRequestTemperature)>2000)
   {
     currentTemperature=temperature();
     lastRequestTemperature=millis();
