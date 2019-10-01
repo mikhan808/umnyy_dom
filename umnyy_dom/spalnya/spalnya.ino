@@ -259,14 +259,14 @@ void loop(){
   server.handleClient();
   if(podogrev)
   {
-    if(currentTemperature>=(t_zh+delta))
+    if(currentTemperature>(t_zh+delta))
     {
       podogrevOff();
      }
    }
    else
   {
-    if(currentTemperature<=t_zh-delta)
+    if(currentTemperature<t_zh-delta)
     {
       podogrevOn();
      }
