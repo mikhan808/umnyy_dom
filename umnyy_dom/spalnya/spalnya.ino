@@ -2,10 +2,12 @@
 #include <ESP8266HTTPClient.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
 #include<FS.h>
 #include<ArduinoJson.h>
+#include "DHT.h"
+
+#define DHTPIN D7     // Номер пина, который подключен к DHT22
+#define DHTTYPE DHT22   // Указываем, какой тип датчика мы используем
 
 bool podogrev = LOW;
 const char* ssid = "KALYASHINY";
@@ -18,8 +20,7 @@ bool val1 = LOW;
 bool val2 = LOW;
 const int led1 = D6;
 const int led2 = D5;
-OneWire oneWire(D7);
-DallasTemperature sensors(&oneWire);
+DHT dht(DHTPIN, DHTTYPE);
 HTTPClient http;
 
 float t_zh = 22.0;
@@ -27,6 +28,7 @@ float delta = 0.1;
 float delta_change = 0.1;
 String jsonConfig = "{}";
 float currentTemperature;
+float currentHumidity;
 unsigned long lastRequestTemperature;
 
 void handleRoot() {
@@ -44,6 +46,10 @@ void handleRoot() {
   s += "<h1>Температура в спальне ";
   s += String(currentTemperature);
   s += "'C";
+  s += "</h1>";
+  s += "<h1>Влажность в спальне ";
+  s += String(currentHumidity);
+  s += "%";
   s += "</h1>";
   s += "<h1>Подогрев ";
   s += (podogrev) ? "включен" : "выключен";
@@ -220,6 +226,7 @@ void setup() {
   digitalWrite(led1, val1);
   digitalWrite(led2, val2);
   delay(1000);
+  dht.begin();
   Serial.begin(115200);
   SPIFFS.begin();
   WiFi.begin(ssid, password);
@@ -256,6 +263,7 @@ void loop() {
   if (abs(currentTime - lastRequestTemperature) > 2000)
   {
     currentTemperature = temperature();
+    currentHumidity = humidity();
     lastRequestTemperature = millis();
   }
   server.handleClient();
@@ -277,8 +285,12 @@ void loop() {
 
 float temperature()
 {
-  sensors.requestTemperatures();
-  return sensors.getTempCByIndex(0);
+    return dht.readTemperature(); // Температура
+}
+
+float humidity()
+{
+  return dht.readHumidity(); // Влажность
 }
 
 void podogrevOn()
