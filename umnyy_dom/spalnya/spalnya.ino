@@ -5,6 +5,10 @@
 #include<FS.h>
 #include<ArduinoJson.h>
 #include "DHT.h"
+#define PIN_TRIG D9
+#define PIN_ECHO D10
+
+
 
 #define DHTPIN D7     // Номер пина, который подключен к DHT22
 #define DHTTYPE DHT22   // Указываем, какой тип датчика мы используем
@@ -29,6 +33,7 @@ float delta_change = 0.1;
 String jsonConfig = "{}";
 float currentTemperature;
 float currentHumidity;
+long currentSensor;
 unsigned long lastRequestTemperature;
 
 void handleRoot() {
@@ -50,6 +55,10 @@ void handleRoot() {
   s += "<h1>Влажность в спальне ";
   s += String(currentHumidity);
   s += "%";
+  s += "</h1>";
+  s += "<h1>Sensor в спальне ";
+  s += String(currentSensor);
+  s += "см";
   s += "</h1>";
   s += "<h1>Подогрев ";
   s += (podogrev) ? "включен" : "выключен";
@@ -223,6 +232,10 @@ void setup() {
   delay(1000);
   pinMode(led1, OUTPUT);
   pinMode(led2, OUTPUT);
+  pinMode(PIN_TRIG, OUTPUT);
+  pinMode(PIN_ECHO,INPUT);
+  pinMode(BUILTIN_LED,OUTPUT);
+  bool diod=true;
   digitalWrite(led1, val1);
   digitalWrite(led2, val2);
   delay(1000);
@@ -235,8 +248,11 @@ void setup() {
   // ожидание соединения
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
+    diod= !diod;
+    digitalWrite(BUILTIN_LED,diod);
     Serial.print(".");
   }
+  digitalWrite(BUILTIN_LED,true);
   Serial.println("");
   Serial.print("Connected to ");
   Serial.println(ssid);
@@ -264,6 +280,12 @@ void loop() {
   {
     currentTemperature = temperature();
     currentHumidity = humidity();
+    currentSensor = sensor();
+    if (currentSensor>0 && currentSensor<5)
+  {
+     val1 = !val1;
+     digitalWrite(led1, val1);
+  }
     lastRequestTemperature = millis();
   }
   server.handleClient();
@@ -291,6 +313,21 @@ float temperature()
 float humidity()
 {
   return dht.readHumidity(); // Влажность
+}
+
+long sensor()
+{
+  digitalWrite(PIN_TRIG, LOW);
+  delayMicroseconds(5);
+  digitalWrite(PIN_TRIG, HIGH);
+  // Выставив высокий уровень сигнала, ждем около 10 микросекунд. В этот момент датчик будет посылать сигналы с частотой 40 КГц.
+  delayMicroseconds(10);
+  digitalWrite(PIN_TRIG, LOW);
+  //  Время задержки акустического сигнала на эхолокаторе.
+  long duration = pulseIn(PIN_ECHO, HIGH);
+  // Теперь осталось преобразовать время в расстояние
+  return (duration / 2) / 29.1;
+
 }
 
 void podogrevOn()
