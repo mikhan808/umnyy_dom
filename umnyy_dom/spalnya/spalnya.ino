@@ -79,6 +79,8 @@ void handleRoot() {
   s += "</h1>";
   s += "<h2><a href=\"/delta_increase\">Увеличить</a> ";
   s += "<a href=\"/delta_decrease\">Уменьшить</a></h2>";
+  s += "<h2><a href=\"/davlenie\">Прибавить давление</a> ";
+  s += "</h2>";
   server.send(200, "text/html; charset=utf-8", s);
 }
 
@@ -269,6 +271,7 @@ void setup() {
   server.on("/temperature_decrease", temperature_decrease);
   server.on("/delta_increase", delta_increase);
   server.on("/delta_decrease", delta_decrease);
+  server.on("/davlenie", davlenie);
   server.begin();
   Serial.println("HTTP server started");
   currentTemperature = temperature();
@@ -328,6 +331,17 @@ long sensor()
   // Теперь осталось преобразовать время в расстояние
   return (duration / 2) / 29.1;
 
+}
+
+void davlenie()
+{
+  http.begin("http://192.168.0.18/davlenie");
+  http.addHeader("Content-Type", "text/plain");
+  if (http.GET() <= 0)
+  {
+    http.end();
+    return;
+  }
 }
 
 void podogrevOn()
