@@ -286,10 +286,16 @@ void loop() {
      val1 = !val1;
      digitalWrite(led1, val1);
   }
+  if (currentSensor>5 && currentSensor<15)
+  {
+     val2 = !val2;
+     digitalWrite(led2, val2);
+  }
     lastRequestTemperature = millis();
   }
   server.handleClient();
-  if (podogrev)
+  if (podogrev
+  )
   {
     if (currentTemperature > (t_zh + delta))
     {
