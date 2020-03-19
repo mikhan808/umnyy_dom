@@ -11,7 +11,7 @@ IPAddress gateway(192,168,0,1);
 IPAddress subnet(255,255,255,0);
 bool podogrev;
 int pinKotel=2;
-int pinDavlenie=1;
+int pinDavlenie=0;
 
 void handleRoot() {
   String s = "<h1>Котел ";
@@ -41,16 +41,18 @@ void kotelOff()
 
 void davlenie()
 {
-   digitalWrite(pinKotel, HIGH);
-   delay(2000);
-   digitalWrite(pinKotel, LOW);
+   digitalWrite(pinDavlenie, HIGH);
+   delay(3000);
+   digitalWrite(pinDavlenie, LOW);
    server.sendHeader("Location", String("/"), true);
   server.send ( 302, "text/plain", "");
 }
  
 void setup(){
-  delay(1000);
+  pinMode(pinDavlenie, OUTPUT);
+  digitalWrite(pinDavlenie,LOW);
   pinMode(pinKotel, OUTPUT);
+  delay(1000);
   digitalWrite(pinKotel,podogrev);
   Serial.begin(115200);
   WiFi.begin(ssid, password);
