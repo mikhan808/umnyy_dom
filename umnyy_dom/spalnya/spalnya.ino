@@ -5,14 +5,23 @@
 #include<FS.h>
 #include<ArduinoJson.h>
 #include "DHT.h"
-#define PIN_TRIG D9
-#define PIN_ECHO D10
+#define PIN_BUTTON_SPALNYA D9
+#define PIN_BUTTON_CABINET D10
 
 
 
 #define DHTPIN D7     // Номер пина, который подключен к DHT22
 #define DHTTYPE DHT22   // Указываем, какой тип датчика мы используем
-
+bool lustra;
+enum Status_Svet
+{
+  Off=0,
+  One=1,
+  Two=2,
+  All=3
+};
+Status_Svet Spalnya_status;
+Status_Svet Cabinet_status;
 bool podogrev = LOW;
 const char* ssid = "KALYASHINY";
 const char* password = "09061995";
@@ -20,8 +29,6 @@ ESP8266WebServer server(80);
 IPAddress ip(192, 168, 0, 17); //статический IP
 IPAddress gateway(192, 168, 0, 1);
 IPAddress subnet(255, 255, 255, 0);
-bool val1 = LOW;
-bool val2 = LOW;
 const int led1 = D6;
 const int led2 = D5;
 DHT dht(DHTPIN, DHTTYPE);
@@ -35,19 +42,35 @@ float currentTemperature;
 float currentHumidity;
 long currentSensor;
 unsigned long lastRequestTemperature;
-
+String build_string_status(Status_Svet st)
+{
+  String res ="";
+  if(st==Off)
+    res = "Выключен";
+    if(st==One)
+    res = "Включен 1";
+    if(st==Two)
+    res = "Включен 2";
+    if(st==All)
+    res = "Включен Все";
+    return res;
+}
 void handleRoot() {
   loadConfig();
   String s = "<h1>Свет в спальне ";
-  s += (val1) ? "включен" : "выключен";
+  s += build_string_status(Spalnya_status);
   s += "</h1>";
-  s += "<h2><a href=\"/led1/on\">Включить</a> ";
-  s += "<a href=\"/led1/off\">Выключить</a></h2>";
+  s += "<h2><a href=\"/led1/on1\">Включить 1</a> ";
+  s += "<a href=\"/led1/on2\">Включить 2</a></h2>";
+  s += "<h2><a href=\"/led1/off1\">Выключить 1</a> ";
+  s += "<a href=\"/led1/off2\">Выключить 2</a></h2>";
   s += "<h1>Свет в кабинете ";
-  s += (val2) ? "включен" : "выключен";
+   s += build_string_status(Cabinet_status);
   s += "</h1>";
-  s += "<h2><a href=\"/led2/on\">Включить</a> ";
-  s += "<a href=\"/led2/off\">Выключить</a></h2>";
+  s += "<h2><a href=\"/led2/on1\">Включить 1</a> ";
+  s += "<a href=\"/led2/on2\">Включить 2</a></h2>";
+  s += "<h2><a href=\"/led2/off1\">Выключить 1</a> ";
+  s += "<a href=\"/led2/off2\">Выключить 2</a></h2>";
   s += "<h1>Температура в спальне ";
   s += String(currentTemperature);
   s += "'C";
@@ -81,6 +104,8 @@ void handleRoot() {
   s += "<a href=\"/delta_decrease\">Уменьшить</a></h2>";
   s += "<h2><a href=\"/davlenie\">Прибавить давление</a> ";
   s += "</h2>";
+  s += "<h2><a href=\"/rezhim_lustra\">Переключить режим люстры</a> ";
+  s += "</h2>";
   server.send(200, "text/html; charset=utf-8", s);
 }
 
@@ -96,6 +121,10 @@ void change_value(String type, int inc) {
   if (type == "delta_change")
   {
     delta_change = delta_change + 0.1 * inc;
+  }
+  if (type == "lustra")
+  {
+    lustra = inc;
   }
   saveConfig();
   server.sendHeader("Location", String("/"), true);
@@ -127,6 +156,10 @@ void delta_decrease()
 {
   change_value("delta", -1);
 }
+void rezhim_lustra()
+{
+  change_value("lustra",!lustra);
+}
 
 bool loadConfig() {
   // Открываем файл для чтения
@@ -155,6 +188,7 @@ bool loadConfig() {
   t_zh = root["t_zh"];
   delta = root["delta"];
   delta_change = root["delta_change"];
+  lustra = root["lustra"];
   return true;
 }
 
@@ -167,6 +201,7 @@ bool saveConfig() {
   json["t_zh"] = t_zh;
   json["delta"] = delta;
   json["delta_change"] = delta_change;
+  json["lustra"] = lustra;
   // Помещаем созданный json в глобальную переменную json.printTo(jsonConfig);
   json.printTo(jsonConfig);
   // Открываем файл для записи
@@ -179,18 +214,101 @@ bool saveConfig() {
   json.printTo(configFile);
   return true;
 }
+Status_Svet int_to_Status_Svet(int x)
+{
+  if(x==0)
+  return Off;
+  if(x==1);
+  return One;
+  if(x==2);
+  return Two;
+  if(x==3);
+  return All;
+}
+Status_Svet switch_status(Status_Svet st)
+{
+  if(st==Off)
+    return One;
+    if(st==One)
+    return Two;
+    if(st==Two)
+    return All;
+    if(st==All)
+    return Off;
+}
+Status_Svet switch_status(Status_Svet st,bool on,int number)
+{
+  if(on)
+  {
+     if(st==Off)
+       return int_to_Status_Svet(number);
+       else return All;
+  } else
+    {
+      if(st==All)
+       return int_to_Status_Svet(All-number);
+       else return Off;
+    }
+}
+void sendInfoToUno(String room,Status_Svet st)
+{
+    if (st==Off)
+    {
+      String command = "off_"+room+"_1";
+      Serial.print(command);
+      command = "off_"+room+"_2";
+      Serial.print(command);
+    }
+    if(st==One)
+    {
+      String command = "on_"+room+"_1";
+      Serial.print(command);
+      command = "off_"+room+"_2";
+      Serial.print(command);
+    }
+    if(st==Two)
+    {
+      String command = "off_"+room+"_1";
+      Serial.print(command);
+      command = "on_"+room+"_2";
+      Serial.print(command);
+    }
+    if(st==All)
+    {
+      String command = "on_"+room+"_1";
+      Serial.print(command);
+      command = "on_"+room+"_2";
+      Serial.print(command);
+    }
+    
+}
 
 // Метод включения диода
-void ledOn(int x) {
+void ledOn(int x,int number) {
   if (x == 1)
   {
-    val1 = HIGH;
-    digitalWrite(led1, val1);
+    Spalnya_status = switch_status(Spalnya_status,true,number);
+    sendInfoToUno("spalnya",Spalnya_status);
   }
   if (x == 2)
   {
-    val2 = HIGH;
-    digitalWrite(led2, val2);
+   Cabinet_status = switch_status(Cabinet_status,true,number);
+    sendInfoToUno("cabinet",Cabinet_status);
+  }
+  // Перенаправление обратно на стартовую страницу
+  server.sendHeader("Location", String("/"), true);
+  server.send ( 302, "text/plain", "");
+}
+void ledOff(int x,int number) {
+  if (x == 1)
+  {
+    Spalnya_status = switch_status(Spalnya_status,false,number);
+    sendInfoToUno("spalnya",Spalnya_status);
+  }
+  if (x == 2)
+  {
+    Cabinet_status = switch_status(Cabinet_status,false,number);
+    sendInfoToUno("cabinet",Cabinet_status);
   }
   // Перенаправление обратно на стартовую страницу
   server.sendHeader("Location", String("/"), true);
@@ -198,48 +316,67 @@ void ledOn(int x) {
 }
 
 // Метод выключения диода
-void led1on()
+void led1on1()
 {
-  ledOn(1);
+  ledOn(1,1);
 }
-void led2on()
+void led1on2()
 {
-  ledOn(2);
+  ledOn(1,2);
 }
-void led1off()
+void led2on1()
 {
-  ledOff(1);
+  ledOn(2,1);
 }
-void led2off()
+void led2on2()
 {
-  ledOff(2);
+  ledOn(2,2);
+}
+void led1off1()
+{
+  ledOff(1,1);
+}
+void led1off2()
+{
+  ledOff(1,2);
+}
+void led2off1()
+{
+  ledOff(2,1);
+}
+void led2off2()
+{
+  ledOff(2,2);
 }
 
-void ledOff(int x) {
-  if (x == 1)
-  {
-    val1 = LOW;
-    digitalWrite(led1, val1);
-  }
-  if (x == 2)
-  {
-    val2 = LOW;
-    digitalWrite(led2, val2);
-  }
-  // Перенаправление обратно на стартовую страницу
-  server.sendHeader("Location", String("/"), true);
-  server.send ( 302, "text/plain", "");
+
+
+
+
+
+
+void checkButtons()
+{
+  if(digitalRead(PIN_BUTTON_SPALNYA))
+    {
+      Spalnya_status = switch_status(Spalnya_status);
+      sendInfoToUno("spalnya",Spalnya_status);
+    }
+    if(digitalRead(PIN_BUTTON_CABINET))
+    {
+      Cabinet_status = switch_status(Cabinet_status);
+      sendInfoToUno("spalnya",Cabinet_status);
+    }
 }
+
 void setup() {
   delay(1000);
-  pinMode(led1, OUTPUT);
-  pinMode(led2, OUTPUT);
-  pinMode(PIN_TRIG, OUTPUT);
-  pinMode(PIN_ECHO,INPUT);
+  pinMode(PIN_BUTTON_SPALNYA, INPUT);
+  pinMode(PIN_BUTTON_CABINET, INPUT);
   pinMode(BUILTIN_LED,OUTPUT);
+  Spalnya_status=Off;
+  Cabinet_status=Off;
   bool diod=true;
-  digitalWrite(led1, val1);
-  digitalWrite(led2, val2);
   delay(1000);
   dht.begin();
   Serial.begin(115200);
@@ -261,10 +398,14 @@ void setup() {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
   server.on("/", handleRoot);
-  server.on("/led1/on", led1on);
-  server.on("/led1/off", led1off);
-  server.on("/led2/on", led2on);
-  server.on("/led2/off", led2off);
+  server.on("/led1/on1", led1on1);
+  server.on("/led1/on2", led1on2);
+  server.on("/led1/off1", led1off1);
+  server.on("/led1/off2", led1off2);
+  server.on("/led2/on1", led2on1);
+  server.on("/led2/on2", led2on2);
+  server.on("/led2/off1", led2off1);
+  server.on("/led2/off2", led2off2);
   server.on("/delta_change_increase", delta_change_increase);
   server.on("/delta_change_decrease", delta_change_decrease);
   server.on("/temperature_increase", temperature_increase);
@@ -272,28 +413,20 @@ void setup() {
   server.on("/delta_increase", delta_increase);
   server.on("/delta_decrease", delta_decrease);
   server.on("/davlenie", davlenie);
+  server.on("/rezhim_lustra",rezhim_lustra);
   server.begin();
   Serial.println("HTTP server started");
   currentTemperature = temperature();
   lastRequestTemperature = millis();
 }
+
 void loop() {
   unsigned long currentTime = millis();
   if (abs(currentTime - lastRequestTemperature) > 2000)
   {
     currentTemperature = temperature();
     currentHumidity = humidity();
-    currentSensor = sensor();
-    if (currentSensor>0 && currentSensor<5)
-  {
-     val1 = !val1;
-     digitalWrite(led1, val1);
-  }
-  if (currentSensor>5 && currentSensor<15)
-  {
-     val2 = !val2;
-     digitalWrite(led2, val2);
-  }
+    checkButtons();
     lastRequestTemperature = millis();
   }
   server.handleClient();
@@ -324,20 +457,6 @@ float humidity()
   return dht.readHumidity(); // Влажность
 }
 
-long sensor()
-{
-  digitalWrite(PIN_TRIG, LOW);
-  delayMicroseconds(5);
-  digitalWrite(PIN_TRIG, HIGH);
-  // Выставив высокий уровень сигнала, ждем около 10 микросекунд. В этот момент датчик будет посылать сигналы с частотой 40 КГц.
-  delayMicroseconds(10);
-  digitalWrite(PIN_TRIG, LOW);
-  //  Время задержки акустического сигнала на эхолокаторе.
-  long duration = pulseIn(PIN_ECHO, HIGH);
-  // Теперь осталось преобразовать время в расстояние
-  return (duration / 2) / 29.1;
-
-}
 
 void davlenie()
 {
