@@ -5,8 +5,8 @@
 #include<FS.h>
 #include<ArduinoJson.h>
 #include "DHT.h"
-#define PIN_BUTTON_SPALNYA D9
-#define PIN_BUTTON_CABINET D10
+#define PIN_BUTTON_SPALNYA D3
+#define PIN_BUTTON_CABINET D4
 
 
 
@@ -29,8 +29,6 @@ ESP8266WebServer server(80);
 IPAddress ip(192, 168, 0, 17); //статический IP
 IPAddress gateway(192, 168, 0, 1);
 IPAddress subnet(255, 255, 255, 0);
-const int led1 = D6;
-const int led2 = D5;
 DHT dht(DHTPIN, DHTTYPE);
 HTTPClient http;
 
@@ -78,10 +76,6 @@ void handleRoot() {
   s += "<h1>Влажность в спальне ";
   s += String(currentHumidity);
   s += "%";
-  s += "</h1>";
-  s += "<h1>Sensor в спальне ";
-  s += String(currentSensor);
-  s += "см";
   s += "</h1>";
   s += "<h1>Подогрев ";
   s += (podogrev) ? "включен" : "выключен";
@@ -218,11 +212,11 @@ Status_Svet int_to_Status_Svet(int x)
 {
   if(x==0)
   return Off;
-  if(x==1);
+  if(x==1)
   return One;
-  if(x==2);
+  if(x==2)
   return Two;
-  if(x==3);
+  if(x==3)
   return All;
 }
 Status_Svet switch_status(Status_Svet st)
@@ -240,45 +234,65 @@ Status_Svet switch_status(Status_Svet st,bool on,int number)
 {
   if(on)
   {
-     if(st==Off)
+     if(st==Off||st==int_to_Status_Svet(number))
+     {
        return int_to_Status_Svet(number);
+     }
        else return All;
   } else
     {
-      if(st==All)
+      if(st==All||int_to_Status_Svet(All-number)==st)
+      {
        return int_to_Status_Svet(All-number);
+      }
        else return Off;
     }
+}
+int interval = 1000;
+void send_command(String command)
+{
+  Serial.print(command);
+  String inString="";
+  unsigned long start = millis();
+  while(abs(millis()-start)<3000)
+  {
+  while (Serial.available() > 0) {
+    inString=Serial.readString();
+    if(inString=="OK")
+      return;
+  }
+  }
 }
 void sendInfoToUno(String room,Status_Svet st)
 {
     if (st==Off)
     {
       String command = "off_"+room+"_1";
-      Serial.print(command);
+      send_command(command);
       command = "off_"+room+"_2";
-      Serial.print(command);
+      send_command(command);
     }
     if(st==One)
     {
       String command = "on_"+room+"_1";
-      Serial.print(command);
+     send_command(command);
       command = "off_"+room+"_2";
-      Serial.print(command);
+      send_command(command);
     }
     if(st==Two)
     {
       String command = "off_"+room+"_1";
-      Serial.print(command);
+      send_command(command);
       command = "on_"+room+"_2";
-      Serial.print(command);
+      send_command(command);
     }
     if(st==All)
     {
       String command = "on_"+room+"_1";
-      Serial.print(command);
+      send_command(command);
+      delay(interval);
       command = "on_"+room+"_2";
-      Serial.print(command);
+     send_command(command);
     }
     
 }
@@ -357,15 +371,15 @@ void led2off2()
 
 void checkButtons()
 {
-  if(digitalRead(PIN_BUTTON_SPALNYA))
+  if(digitalRead(PIN_BUTTON_SPALNYA)==HIGH)
     {
       Spalnya_status = switch_status(Spalnya_status);
       sendInfoToUno("spalnya",Spalnya_status);
     }
-    if(digitalRead(PIN_BUTTON_CABINET))
+    if(digitalRead(PIN_BUTTON_CABINET)==HIGH)
     {
       Cabinet_status = switch_status(Cabinet_status);
-      sendInfoToUno("spalnya",Cabinet_status);
+      sendInfoToUno("cabinet",Cabinet_status);
     }
 }
 
@@ -419,9 +433,14 @@ void setup() {
   currentTemperature = temperature();
   lastRequestTemperature = millis();
 }
-
+unsigned long lastCheckButtons=0;
 void loop() {
   unsigned long currentTime = millis();
+  if (abs(currentTime - lastCheckButtons) > 500)
+  {
+    checkButtons();
+    lastCheckButtons=millis();
+  }
   if (abs(currentTime - lastRequestTemperature) > 2000)
   {
     currentTemperature = temperature();

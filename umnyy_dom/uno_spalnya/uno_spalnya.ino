@@ -17,21 +17,46 @@ void loop() {
 
  inString=Serial.readString();
   if(inString=="on_spalnya_1")
+  {
     digitalWrite(PIN_SPALNYA_1,HIGH);
+    Serial.print("OK");
+  }
     if(inString=="on_spalnya_2")
+    {
     digitalWrite(PIN_SPALNYA_2,HIGH);
+    Serial.print("OK");
+  }
     if(inString=="off_spalnya_1")
+    {
     digitalWrite(PIN_SPALNYA_1,LOW);
+    Serial.print("OK");
+  }
     if(inString=="off_spalnya_2")
+    {
     digitalWrite(PIN_SPALNYA_2,LOW);
+    Serial.print("OK");
+  }
     if(inString=="on_cabinet_1")
+    {
     digitalWrite(PIN_CABINET_1,HIGH);
+    Serial.print("OK");
+  }
     if(inString=="on_cabinet_2")
+    {
     digitalWrite(PIN_CABINET_2,HIGH);
+    Serial.print("OK");
+  }
+    
    if(inString=="off_cabinet_1")
+   {
     digitalWrite(PIN_CABINET_1,LOW);
+     Serial.print("OK");
+   }
     if(inString=="off_cabinet_2")
+    {
     digitalWrite(PIN_CABINET_2,LOW);
+     Serial.print("OK");
+    }
 
   }
 }
