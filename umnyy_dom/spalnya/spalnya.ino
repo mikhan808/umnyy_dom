@@ -23,8 +23,8 @@ enum Status_Svet
 Status_Svet Spalnya_status;
 Status_Svet Cabinet_status;
 bool podogrev = LOW;
-const char* ssid = "KALYASHINY";
-const char* password = "09061995";
+const char* ssid = "********";
+const char* password = "********";
 ESP8266WebServer server(80);
 IPAddress ip(192, 168, 0, 17); //статический IP
 IPAddress gateway(192, 168, 0, 1);

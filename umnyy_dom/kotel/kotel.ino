@@ -2,8 +2,8 @@
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 
-const char* ssid = "KALYASHINY";
-const char* password = "09061995";
+const char* ssid = "********";
+const char* password = "********";
 ESP8266WebServer server(80);
 
 IPAddress ip(192,168,0,18);  //статический IP
