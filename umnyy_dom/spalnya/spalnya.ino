@@ -7,6 +7,10 @@
 #include "DHT.h"
 #define PIN_BUTTON_SPALNYA D3
 #define PIN_BUTTON_CABINET D4
+#define PIN_SVET_SPALNYA_1 D2
+#define PIN_SVET_SPALNYA_2 D8
+#define PIN_SVET_CABINET_1 D9
+#define PIN_SVET_CABINET_2 D10
 
 
 
@@ -62,7 +66,7 @@ void handleRoot() {
   s += "<a href=\"/led1/on2\">Включить 2</a></h2>";
   s += "<h2><a href=\"/led1/off1\">Выключить 1</a> ";
   s += "<a href=\"/led1/off2\">Выключить 2</a></h2>";
-  s += "<h1>Свет в кабинете ";
+  s += "<h1>Свет в детской ";
    s += build_string_status(Cabinet_status);
   s += "</h1>";
   s += "<h2><a href=\"/led2/on1\">Включить 1</a> ";
@@ -98,6 +102,9 @@ void handleRoot() {
   s += "<a href=\"/delta_decrease\">Уменьшить</a></h2>";
   s += "<h2><a href=\"/davlenie\">Прибавить давление</a> ";
   s += "</h2>";
+  s += "<h1>Режим люстры ";
+  s += (lustra) ? "включен" : "выключен";
+  s += "</h1>";
   s += "<h2><a href=\"/rezhim_lustra\">Переключить режим люстры</a> ";
   s += "</h2>";
   server.send(200, "text/html; charset=utf-8", s);
@@ -222,13 +229,25 @@ Status_Svet int_to_Status_Svet(int x)
 Status_Svet switch_status(Status_Svet st)
 {
   if(st==Off)
-    return One;
+  {
+    if(!lustra)
+      return All;
+     return One;
+  }
     if(st==One)
-    return Two;
+    { 
+      if(!lustra)
+        return Off;
+      return Two;
+    }
     if(st==Two)
-    return All;
+    {
+      if(!lustra)
+        return Off;
+      return All;
+    }
     if(st==All)
-    return Off;
+      return Off;
 }
 Status_Svet switch_status(Status_Svet st,bool on,int number)
 {
@@ -267,32 +286,55 @@ void sendInfoToUno(String room,Status_Svet st)
 {
     if (st==Off)
     {
-      String command = "off_"+room+"_1";
-      send_command(command);
-      command = "off_"+room+"_2";
-      send_command(command);
+      if(room=="spalnya")
+      {
+        digitalWrite(PIN_SVET_SPALNYA_1,LOW);
+        digitalWrite(PIN_SVET_SPALNYA_2,LOW);
+      }
+      else
+      {
+        digitalWrite(PIN_SVET_CABINET_1,LOW);
+        digitalWrite(PIN_SVET_CABINET_2,LOW);
+      }
     }
     if(st==One)
     {
-      String command = "on_"+room+"_1";
-     send_command(command);
-      command = "off_"+room+"_2";
-      send_command(command);
+      if(room=="spalnya")
+      {
+        digitalWrite(PIN_SVET_SPALNYA_1,HIGH);
+        digitalWrite(PIN_SVET_SPALNYA_2,LOW);
+      }
+      else
+      {
+        digitalWrite(PIN_SVET_CABINET_1,HIGH);
+        digitalWrite(PIN_SVET_CABINET_2,LOW);
+      }
     }
     if(st==Two)
     {
-      String command = "off_"+room+"_1";
-      send_command(command);
-      command = "on_"+room+"_2";
-      send_command(command);
+      if(room=="spalnya")
+      {
+        digitalWrite(PIN_SVET_SPALNYA_1,LOW);
+        digitalWrite(PIN_SVET_SPALNYA_2,HIGH);
+      }
+      else
+      {
+        digitalWrite(PIN_SVET_CABINET_1,LOW);
+        digitalWrite(PIN_SVET_CABINET_2,HIGH);
+      }
     }
     if(st==All)
     {
-      String command = "on_"+room+"_1";
-      send_command(command);
-      delay(interval);
-      command = "on_"+room+"_2";
-     send_command(command);
+      if(room=="spalnya")
+      {
+        digitalWrite(PIN_SVET_SPALNYA_1,HIGH);
+        digitalWrite(PIN_SVET_SPALNYA_2,HIGH);
+      }
+      else
+      {
+        digitalWrite(PIN_SVET_CABINET_1,HIGH);
+        digitalWrite(PIN_SVET_CABINET_2,HIGH);
+      }
     }
     
 }
@@ -302,12 +344,12 @@ void ledOn(int x,int number) {
   if (x == 1)
   {
     Spalnya_status = switch_status(Spalnya_status,true,number);
-    sendInfoToUno("spalnya",Spalnya_status);
+    sendInfoToUno("spalnya",Spalnya_status);      
   }
   if (x == 2)
   {
    Cabinet_status = switch_status(Cabinet_status,true,number);
-    sendInfoToUno("cabinet",Cabinet_status);
+   sendInfoToUno("cabinet",Cabinet_status);
   }
   // Перенаправление обратно на стартовую страницу
   server.sendHeader("Location", String("/"), true);
@@ -388,6 +430,10 @@ void setup() {
   pinMode(PIN_BUTTON_SPALNYA, INPUT);
   pinMode(PIN_BUTTON_CABINET, INPUT);
   pinMode(BUILTIN_LED,OUTPUT);
+  pinMode(PIN_SVET_SPALNYA_1,OUTPUT);
+  pinMode(PIN_SVET_SPALNYA_2,OUTPUT);
+  pinMode(PIN_SVET_CABINET_1,OUTPUT);
+  pinMode(PIN_SVET_CABINET_2,OUTPUT);
   Spalnya_status=Off;
   Cabinet_status=Off;
   bool diod=true;
