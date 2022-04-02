@@ -6,7 +6,7 @@
 #include "AsyncStream.h"  // асинхронное чтение сериал
 WiFiClient client;
 AsyncStream<50> serial(&client, ';');  
-char* host = "192.168.0.40";
+char* host = "192.168.0.120";
 uint16_t port = 100;
 
 

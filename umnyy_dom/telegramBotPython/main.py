@@ -18,7 +18,7 @@ def build_string_status(st):
         return "Включен Все"
     return "Неизвестно"
 # Задаем адрес сервера
-SERVER_ADDRESS = ('192.168.0.40', 100)
+SERVER_ADDRESS = ('192.168.0.120', 100)
 
 # Настраиваем сокет
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
