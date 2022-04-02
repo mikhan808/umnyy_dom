@@ -25,7 +25,7 @@ server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.bind(SERVER_ADDRESS)
 server_socket.listen(10)
 print('server is running, please, press ctrl+c to stop')
-conns = list()
+conns = dict()
 
 # Создаем экземпляр бота
 bot = telebot.TeleBot('****')
@@ -73,17 +73,16 @@ def serialSend(data):
         try:
             connection.send(txs.encode())
         except Exception :
-           conns.remove(connection)
-data_buf=""
+           del conns[connection]
 def onRead():
     for connection in conns:
         rx=None
         try:
             rx = connection.recv(1024)
         except Exception:
-            conns.remove(connection)
+            del conns[connection]
         if rx is None: return  # выходим если нечего читать
-        global data_buf
+        data_buf=conns[connection]
         data_buf+=str(rx, 'utf-8').strip()
         data_bufs=data_buf.split(';')
         if len(data_bufs)<2:
@@ -96,23 +95,22 @@ def onRead():
                     data_buf+=";"
                 data_buf+=s
             i+=1
+        conns[connection]=data_buf
         rxs = data_bufs[0].strip()
-        print(rxs)
         data = rxs.split(',')
         global current_spalnya
         global current_detskaya
         global current_temperature
         global current_humidity
+        print(rxs)
         if data[0] == '1':
             current_spalnya=int(data[1])
         if data[0] == '2':
             current_detskaya = int(data[1])
         if data[0] == '3':
             current_temperature=float(data[1])
-            print(current_temperature)
         if data[0] == '4':
             current_humidity=float(data[1])
-            print(current_humidity)
 
         #connection.send(bytes('Hello', encoding='UTF-8'))
 
@@ -123,9 +121,10 @@ def startBot():
     bot.polling(none_stop=True, interval=0)
 # Запускаем бота
 def checkConnections():
-    connection, address = server_socket.accept()
-    print("new connection from {address}".format(address=address))
-    conns.append(connection)
+    while True:
+        connection, address = server_socket.accept()
+        print("new connection from {address}".format(address=address))
+        conns[connection]=""
 
 th = Thread(target=startBot)
 th.start()

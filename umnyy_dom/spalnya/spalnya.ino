@@ -299,6 +299,7 @@ void loop() {
     client.connect(host,port);
     
   }
+  checkButtons();
   delay(1000);
  
 }
